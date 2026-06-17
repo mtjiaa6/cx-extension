@@ -69,7 +69,6 @@ async function loadConversation() {
     document.getElementById("date-from").value = today;
     document.getElementById("date-to").value = today;
 
-    // Trigger initial filter
     applyDateFilter();
   });
 }
@@ -88,7 +87,7 @@ function applyDateFilter() {
 
   const from = new Date(fromVal);
   const to = new Date(toVal);
-  to.setHours(23, 59, 59); // include full end day
+  to.setHours(23, 59, 59);
 
   filteredMessages = allMessages.filter((m) => {
     if (!m.date) return false;
@@ -170,8 +169,6 @@ Return this exact JSON structure:
 
     const data = await response.json();
     const raw = data.content[0].text.trim();
-
-    // Strip markdown code fences if present
     const clean = raw.replace(/```json|```/g, "").trim();
     aiResult = JSON.parse(clean);
 
@@ -188,15 +185,12 @@ Return this exact JSON structure:
 }
 
 function renderAIResult(ai) {
-  // Sentiment badge
   const badge = document.getElementById("sentiment-badge");
   badge.textContent = `${sentimentEmoji(ai.sentiment)} ${capitalize(ai.sentiment)}`;
   badge.className = `sentiment-badge sentiment-${ai.sentiment}`;
 
-  // Language
   document.getElementById("lang-badge").textContent = ai.language ? `🌐 ${ai.language}` : "";
 
-  // Escalation flag
   const flagEl = document.getElementById("escalation-flag");
   if (ai.escalation_needed) {
     document.getElementById("escalation-reason").textContent = ai.escalation_reason;
@@ -205,12 +199,9 @@ function renderAIResult(ai) {
     flagEl.classList.add("hidden");
   }
 
-  // Issue / Action / Outcome
   document.getElementById("ai-issue").textContent = ai.issue || "—";
   document.getElementById("ai-action").textContent = ai.action_taken || "—";
   document.getElementById("ai-outcome").textContent = ai.outcome || "—";
-
-  // Next action
   document.getElementById("ai-next-action").textContent = ai.next_action || "—";
 
   showAIState("result");
@@ -220,14 +211,12 @@ function populateCaseFields(ai) {
   document.getElementById("case-subject").value = ai.subject || "";
   document.getElementById("case-priority").value = ai.priority || "Medium";
 
-  // Match category to dropdown
   const categorySelect = document.getElementById("case-category");
   const options = Array.from(categorySelect.options).map(o => o.value);
   if (options.includes(ai.category)) {
     categorySelect.value = ai.category;
   }
 
-  // Build structured description
   const description = [
     `ISSUE\n${ai.issue}`,
     `ACTION TAKEN\n${ai.action_taken}`,
@@ -254,10 +243,9 @@ document.getElementById("create-btn").addEventListener("click", async () => {
     sfUrl
   };
 
-  // Send to background.js which opens Salesforce
   chrome.runtime.sendMessage({ action: "createCase", caseData }, (response) => {
     if (response?.success) {
-      setStatus("✅ Case opened in Salesforce — review and save!", "success");
+      setStatus("✅ Case ready — switch to Salesforce when you're done here.", "success");
     } else {
       setStatus("Something went wrong. Try again.", "error");
     }

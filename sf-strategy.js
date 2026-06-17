@@ -1,5 +1,5 @@
 // sf-strategy.js
-// v1: DOM automation — short fields via URL, description via DOM inject
+// v1: DOM automation — open blank new case page, inject ALL fields
 // v2: REST API — swap createCase() only
 
 function createCase(caseData) {
@@ -7,29 +7,23 @@ function createCase(caseData) {
 }
 
 function domStrategy(caseData) {
-  const { sfUrl, subject, priority, category, contactName, contactPhone } = caseData;
+  const { sfUrl, subject, priority, category, contactName, contactPhone, description } = caseData;
 
   const baseUrl = sfUrl.replace(/\/$/, "");
 
-  // Only short fields go in the URL
-  // Description is injected by background.js after the page loads
-  const fields = {
-    Subject: subject,
-    Priority: priority,
-    Type: category,
-    Origin: "Chat"
-  };
-
-  const defaultFieldValues = Object.entries(fields)
-    .filter(([, v]) => v)
-    .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
-    .join(",");
-
-  const newCaseUrl = `${baseUrl}/lightning/o/Case/new?defaultFieldValues=${defaultFieldValues}`;
+  // Clean new case URL — no defaultFieldValues
+  // All fields injected by background.js after page loads
+  const newCaseUrl = `${baseUrl}/lightning/o/Case/new`;
 
   return {
     url: newCaseUrl,
-    description: buildFullDescription(caseData) // passed separately to background.js
+    fields: {
+      Subject: subject,
+      Priority: priority,
+      Type: category,
+      Origin: "Chat",
+      Description: buildFullDescription(caseData)
+    }
   };
 }
 
