@@ -1,7 +1,7 @@
 // popup.js
-// Wires together: content.js (scrape) → Claude API (analyze) → sf-strategy.js (create case)
+// Wires together: content.js (scrape) → Gemini API (analyze) → sf-strategy.js (create case)
 
-const CLAUDE_MODEL = "claude-sonnet-4-6";
+const GEMINI_MODEL = "gemini-2.0-flash";
 
 // ── STATE ──────────────────────────────────────────────────────
 let allMessages = [];
@@ -12,9 +12,9 @@ let aiResult = null;
 
 // ── INIT ───────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
-  const { sfUrl, claudeApiKey } = await chrome.storage.local.get(["sfUrl", "claudeApiKey"]);
+  const { sfUrl, geminiApiKey } = await chrome.storage.local.get(["sfUrl", "geminiApiKey"]);
 
-  if (!sfUrl || !claudeApiKey) {
+  if (!sfUrl || !geminiApiKey) {
     showScreen("setup");
     return;
   }
@@ -27,14 +27,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 // ── SETUP SCREEN ───────────────────────────────────────────────
 document.getElementById("save-setup-btn").addEventListener("click", async () => {
   const sfUrl = document.getElementById("sf-url-input").value.trim();
-  const claudeApiKey = document.getElementById("api-key-input").value.trim();
+  const geminiApiKey = document.getElementById("api-key-input").value.trim();
 
-  if (!sfUrl || !claudeApiKey) {
+  if (!sfUrl || !geminiApiKey) {
     alert("Please fill in both fields.");
     return;
   }
 
-  await chrome.storage.local.set({ sfUrl, claudeApiKey });
+  await chrome.storage.local.set({ sfUrl, geminiApiKey });
   showScreen("main");
   await loadConversation();
   setupDateListeners();
@@ -59,12 +59,10 @@ async function loadConversation() {
     contactName = response.contactName || "Unknown";
     contactPhone = response.phoneNumber || "";
 
-    // Update header
     document.getElementById("contact-name").textContent = contactName;
     document.getElementById("contact-phone").textContent = contactPhone;
     document.getElementById("contact-avatar").textContent = getInitials(contactName);
 
-    // Set default date range to today
     const today = toDateInputValue(new Date());
     document.getElementById("date-from").value = today;
     document.getElementById("date-to").value = today;
@@ -125,13 +123,13 @@ function renderPreview() {
 async function runAIAnalysis() {
   showAIState("loading");
 
-  const { claudeApiKey } = await chrome.storage.local.get("claudeApiKey");
+  const { geminiApiKey } = await chrome.storage.local.get("geminiApiKey");
 
   const transcript = filteredMessages
     .map((m) => `[${m.time || ""}] ${m.sender}: ${m.text}`)
     .join("\n");
 
-  const prompt = `You are a CX assistant. Analyze this WhatsApp support conversation and return ONLY a JSON object with no extra text.
+  const prompt = `You are a CX assistant. Analyze this WhatsApp support conversation and return ONLY a JSON object with no extra text, no markdown, no code fences.
 
 Conversation:
 ${transcript}
@@ -152,23 +150,20 @@ Return this exact JSON structure:
 }`;
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": claudeApiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true"
-      },
-      body: JSON.stringify({
-        model: CLAUDE_MODEL,
-        max_tokens: 1000,
-        messages: [{ role: "user", content: prompt }]
-      })
-    });
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.3 }
+        })
+      }
+    );
 
     const data = await response.json();
-    const raw = data.content[0].text.trim();
+    const raw = data.candidates[0].content.parts[0].text.trim();
     const clean = raw.replace(/```json|```/g, "").trim();
     aiResult = JSON.parse(clean);
 
