@@ -43,11 +43,11 @@ function scrapeConversation() {
     if (rawMeta) {
       // Parse "[10:32, 17/06/2026] Ahmad:"
       const match = rawMeta.match(/\[(\d{1,2}:\d{2}),\s*(\d{1,2}\/\d{1,2}\/\d{4})\]/);
-      if (match) {
-        time = match[1];                          // "10:32"
-        const [day, month, year] = match[2].split("/");
-        date = new Date(`${year}-${month}-${day}`); // JS Date for comparison
-      }
+        if (match) {
+            time = match[1];                        // "11:47"
+            const [month, day, year] = match[2].split("/"); // M/D/YYYY
+            date = new Date(`${year}-${month.padStart(2,"0")}-${day.padStart(2,"0")}`);
+        }
     }
 
     // Outgoing = sent by agent
