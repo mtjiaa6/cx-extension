@@ -28,7 +28,7 @@ function scrapeConversation() {
 
   messageEls.forEach((row) => {
     // Message text
-    const textEl = row.querySelector("span.selectable-text span[dir='ltr'], span.selectable-text span[dir='rtl']");
+    const textEl = row.querySelector("span[data-testid='selectable-text'], span.selectable-text");
     const text = textEl ? textEl.innerText.trim() : null;
     if (!text) return;
 

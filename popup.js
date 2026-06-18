@@ -1,7 +1,7 @@
 // popup.js
-// Wires together: content.js (scrape) → Gemini API (analyze) → sf-strategy.js (create case)
+// Wires together: content.js (scrape) → Groq API (analyze) → sf-strategy.js (create case)
 
-const GEMINI_MODEL = "gemini-2.0-flash";
+const GROQ_MODEL = "llama-3.3-70b-versatile";
 
 // ── STATE ──────────────────────────────────────────────────────
 let allMessages = [];
@@ -75,6 +75,15 @@ async function loadConversation() {
 function setupDateListeners() {
   document.getElementById("date-from").addEventListener("change", applyDateFilter);
   document.getElementById("date-to").addEventListener("change", applyDateFilter);
+
+  // AI only runs when the agent clicks the button
+  document.getElementById("analyze-btn").addEventListener("click", () => {
+    if (filteredMessages.length === 0) {
+      setStatus("Pick a date range with messages first.", "error");
+      return;
+    }
+    runAIAnalysis();
+  });
 }
 
 function applyDateFilter() {
@@ -87,20 +96,21 @@ function applyDateFilter() {
   const to = new Date(toVal);
   to.setHours(23, 59, 59);
 
-  filteredMessages = allMessages.filter((m) => {
-    if (!m.date) return false;
-    const msgDate = new Date(m.date);
-    return msgDate >= from && msgDate <= to;
-  });
+    filteredMessages = allMessages.filter((m) => {
+        if (!m.date) return false;
+        // Compare date strings directly to avoid timezone issues
+        const msgDate = new Date(m.date);
+        const msgDateStr = msgDate.toISOString().split("T")[0];
+        const fromStr = from.toISOString().split("T")[0];
+        const toStr = to.toISOString().split("T")[0];
+        return msgDateStr >= fromStr && msgDateStr <= toStr;
+    });
 
   document.getElementById("msg-count").textContent = filteredMessages.length;
   renderPreview();
 
-  if (filteredMessages.length > 0) {
-    runAIAnalysis();
-  } else {
-    resetAI();
-  }
+  // Don't auto-run AI — wait for the button click
+  resetAI();
 }
 
 // ── CONVERSATION PREVIEW ───────────────────────────────────────
@@ -149,21 +159,30 @@ Return this exact JSON structure:
   "escalation_reason": "why escalation is needed, or empty string if not needed"
 }`;
 
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.3 }
-        })
-      }
-    );
+try {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${geminiApiKey}`
+      },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        temperature: 0.3,
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" }
+      })
+    });
 
     const data = await response.json();
-    const raw = data.candidates[0].content.parts[0].text.trim();
+
+    if (data.error) {
+      setStatus(`AI error: ${data.error.message}`, "error");
+      showAIState("idle");
+      return;
+    }
+
+    const raw = data.choices[0].message.content.trim();
     const clean = raw.replace(/```json|```/g, "").trim();
     aiResult = JSON.parse(clean);
 
@@ -240,7 +259,7 @@ document.getElementById("create-btn").addEventListener("click", async () => {
 
   chrome.runtime.sendMessage({ action: "createCase", caseData }, (response) => {
     if (response?.success) {
-      setStatus("✅ Case ready — switch to Salesforce when you're done here.", "success");
+      setStatus(" Case ready — switch to Salesforce when you're done here.", "success");
     } else {
       setStatus("Something went wrong. Try again.", "error");
     }
