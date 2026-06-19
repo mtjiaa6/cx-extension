@@ -14,10 +14,38 @@ let aiResult = null; // validated result
 document.addEventListener("DOMContentLoaded", async () => {
   const { sfUrl, geminiApiKey } = await chrome.storage.local.get(["sfUrl", "geminiApiKey"]);
   if (!sfUrl || !geminiApiKey) { showScreen("setup"); return; }
-  showScreen("main");
   await loadConversation();
   setupListeners();
 });
+
+// ── VERIFY SCREEN ──────────────────────────────────────────────
+document.getElementById("v-name").addEventListener("input", updateContinueButtonState);
+document.getElementById("v-phone").addEventListener("input", updateContinueButtonState);
+
+document.getElementById("v-continue-btn").addEventListener("click", () => {
+  // Lock in the confirmed name + phone
+  contactName = document.getElementById("v-name").value.trim();
+  contactPhone = document.getElementById("v-phone").value.trim();
+
+  // Fill the main screen header + phone field
+  document.getElementById("contact-name").textContent = contactName;
+  document.getElementById("contact-phone").textContent = contactPhone;
+  document.getElementById("contact-avatar").textContent = getInitials(contactName);
+  document.getElementById("case-phone").value = contactPhone;
+
+  showScreen("main");
+
+  const today = toDateInputValue(new Date());
+  document.getElementById("date-from").value = today;
+  document.getElementById("date-to").value = today;
+  applyDateFilter();
+});
+
+function updateContinueButtonState() {
+  const name = document.getElementById("v-name").value.trim();
+  const phone = document.getElementById("v-phone").value.trim();
+  document.getElementById("v-continue-btn").disabled = !(name && phone);
+}
 
 // ── SETUP SCREEN ───────────────────────────────────────────────
 document.getElementById("save-setup-btn").addEventListener("click", async () => {
@@ -43,31 +71,38 @@ async function loadConversation() {
       return;
     }
     allMessages = response.messages || [];
-    contactName = response.contactName || "Unknown";
+    contactName = response.contactName || "";
     contactPhone = response.phoneNumber || "";
 
-    document.getElementById("contact-name").textContent = contactName;
-    document.getElementById("contact-phone").textContent = contactPhone || "";
-    document.getElementById("contact-avatar").textContent = getInitials(contactName);
+    // Populate the VERIFY screen
+    document.getElementById("v-avatar").textContent = getInitials(contactName || "?");
 
-    // Fill phone field if detected, else prompt the agent
-    const phoneInput = document.getElementById("case-phone");
-    const phoneLabel = document.getElementById("phone-label");
-    if (contactPhone) {
-      phoneInput.value = contactPhone;
-      phoneLabel.textContent = "Phone number ✓ (auto-detected)";
-      phoneLabel.style.color = "#2e7d32";
+    const vName = document.getElementById("v-name");
+    const vNameLabel = document.getElementById("v-name-label");
+    if (contactName) {
+      vName.value = contactName;
+      vNameLabel.innerHTML = "Name ✓ (auto-detected)";
+      vNameLabel.style.color = "#2e7d32";
     } else {
-      phoneInput.value = "";
-      phoneLabel.textContent = "Phone number ⚠️ (please enter)";
-      phoneLabel.style.color = "#e65100";
+      vName.value = "";
+      vNameLabel.innerHTML = "Name ⚠️ (please enter)";
+      vNameLabel.style.color = "#e65100";
     }
-    updateCreateButtonState();
 
-    const today = toDateInputValue(new Date());
-    document.getElementById("date-from").value = today;
-    document.getElementById("date-to").value = today;
-    applyDateFilter();
+    const vPhone = document.getElementById("v-phone");
+    const vPhoneLabel = document.getElementById("v-phone-label");
+    if (contactPhone) {
+      vPhone.value = contactPhone;
+      vPhoneLabel.innerHTML = "Phone number ✓ (auto-detected)";
+      vPhoneLabel.style.color = "#2e7d32";
+    } else {
+      vPhone.value = "";
+      vPhoneLabel.innerHTML = "Phone number ⚠️ (please enter)";
+      vPhoneLabel.style.color = "#e65100";
+    }
+
+    showScreen("verify");
+    updateContinueButtonState();
   });
 }
 
@@ -311,6 +346,7 @@ document.getElementById("create-btn").addEventListener("click", async () => {
 // ── HELPERS ────────────────────────────────────────────────────
 function showScreen(name) {
   document.getElementById("setup-screen").classList.toggle("hidden", name !== "setup");
+  document.getElementById("verify-screen").classList.toggle("hidden", name !== "verify");
   document.getElementById("main-screen").classList.toggle("hidden", name !== "main");
 }
 function showAIState(state) {
