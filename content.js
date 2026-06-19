@@ -11,15 +11,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 function scrapeConversation() {
-  // --- Contact Name ---
+  // --- Contact Name (from header) ---
   const nameEl = document.querySelector("header ._amig span[dir='auto']") ||
-                 document.querySelector("header span[data-testid='conversation-info-header-chat-title']");
-  const contactName = nameEl ? nameEl.innerText.trim() : "Unknown Contact";
+                 document.querySelector("header span[data-testid='conversation-info-header-chat-title']") ||
+                 document.querySelector("#main header span[title]");
+  let contactName = nameEl ? nameEl.innerText.trim() : "Unknown Contact";
 
   // --- Phone Number ---
-  const subtitleEl = document.querySelector("header ._amig span[dir='auto'] + span") ||
-                     document.querySelector("header span[title]");
-  const phoneNumber = subtitleEl ? subtitleEl.innerText.trim() : "";
+  // Only capture if it actually looks like a phone number.
+  // Saved contacts show "last seen..."/"online" which we reject.
+  let phoneNumber = "";
+  const headerTitle = nameEl ? nameEl.innerText.trim() : "";
+  const digitCount = (headerTitle.match(/\d/g) || []).length;
+  const headerIsPhone = /^[\d\s+\-()]+$/.test(headerTitle) && digitCount >= 7;
+
+  if (headerIsPhone) {
+    // Unsaved contact: the header IS the phone number
+    phoneNumber = headerTitle;
+  }
 
   // --- Messages ---
   // We grab everything here — popup.js filters by date range
@@ -57,10 +66,21 @@ function scrapeConversation() {
     messages.push({ sender, text, time, date, rawMeta });
   });
 
+  // If the header was a phone number (unsaved contact), try to get the
+  // real name from the message senders instead
+  if (headerIsPhone) {
+    const senderNames = messages
+      .filter(m => m.sender !== "Agent" && m.sender !== contactName)
+      .map(m => m.sender);
+    if (senderNames.length > 0) {
+      contactName = senderNames[0]; // use the customer's profile name
+    }
+  }
+
   return {
     contactName,
     phoneNumber,
-    messages,   // full unfiltered array — popup filters by date
+    messages,
     scrapedAt: new Date().toISOString()
   };
 }

@@ -6,217 +6,133 @@
   <title>WhatsApp → Salesforce</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
     body {
-      width: 380px;
+      width: 400px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      font-size: 13px;
-      background: #f0f2f5;
-      color: #111;
+      font-size: 13px; background: #f0f2f5; color: #111;
     }
 
-    /* ── HEADER ── */
-    .header {
-      background: #075E54;
-      padding: 12px 16px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
+    /* HEADER */
+    .header { background: #075E54; padding: 12px 16px; display: flex; align-items: center; gap: 10px; }
     .header-avatar {
-      width: 36px; height: 36px; border-radius: 50%;
-      background: #25D366;
+      width: 36px; height: 36px; border-radius: 50%; background: #25D366;
       display: flex; align-items: center; justify-content: center;
-      font-size: 13px; font-weight: 600; color: #fff;
-      flex-shrink: 0;
+      font-size: 13px; font-weight: 600; color: #fff; flex-shrink: 0;
     }
     .header-name { color: #fff; font-size: 14px; font-weight: 600; }
     .header-phone { color: rgba(255,255,255,0.7); font-size: 12px; margin-top: 1px; }
 
-    /* ── BODY ── */
     .body { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
 
-    /* ── BOXES ── */
-    .box {
-      background: #fff;
-      border-radius: 8px;
-      border: 1px solid #e9edef;
-      overflow: hidden;
-    }
+    /* BOX */
+    .box { background: #fff; border-radius: 8px; border: 1px solid #e9edef; overflow: hidden; }
     .box-label {
-      background: #f0f2f5;
-      padding: 6px 12px;
-      font-size: 11px;
-      font-weight: 600;
-      color: #667781;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      border-bottom: 1px solid #e9edef;
-      display: flex;
-      align-items: center;
-      gap: 6px;
+      background: #f0f2f5; padding: 6px 12px; font-size: 11px; font-weight: 600;
+      color: #667781; text-transform: uppercase; letter-spacing: 0.04em;
+      border-bottom: 1px solid #e9edef; display: flex; align-items: center; gap: 6px;
     }
     .box-body { padding: 10px 12px; }
 
-    /* ── DATE RANGE ── */
+    /* DATE */
     .date-row { display: flex; gap: 8px; }
     .date-field { flex: 1; }
-    .date-field label {
-      display: block;
-      font-size: 11px;
-      color: #667781;
-      margin-bottom: 4px;
-    }
+    .date-field label { display: block; font-size: 11px; color: #667781; margin-bottom: 4px; }
     .date-field input[type="date"] {
-      width: 100%;
-      padding: 6px 8px;
-      border: 1px solid #e9edef;
-      border-radius: 6px;
-      font-size: 12px;
-      color: #111;
-      background: #f0f2f5;
+      width: 100%; padding: 6px 8px; border: 1px solid #e9edef;
+      border-radius: 6px; font-size: 12px; color: #111; background: #f0f2f5;
     }
-    .msg-count {
-      font-size: 11px;
-      color: #667781;
-      text-align: right;
-      margin-top: 6px;
-    }
+    .msg-count { font-size: 11px; color: #667781; text-align: right; margin-top: 6px; }
     .msg-count span { color: #075E54; font-weight: 600; }
 
-    /* ── CONVERSATION PREVIEW ── */
+    /* PREVIEW */
     .preview {
-      font-size: 12px;
-      line-height: 1.6;
-      color: #667781;
-      max-height: 100px;
-      overflow-y: auto;
-      background: #f0f2f5;
-      border-radius: 6px;
-      padding: 8px 10px;
+      font-size: 12px; line-height: 1.6; color: #667781; max-height: 100px;
+      overflow-y: auto; background: #f0f2f5; border-radius: 6px; padding: 8px 10px;
     }
     .preview .msg-agent { color: #075E54; }
     .preview .msg-customer { color: #111; }
     .preview-empty { color: #aaa; font-style: italic; }
 
-    /* ── AI ANALYSIS ── */
-    .ai-loading {
-      display: flex; align-items: center; gap: 8px;
-      color: #667781; font-size: 12px; padding: 4px 0;
+    /* AI BUTTON + STATES */
+    .analyze-btn {
+      width: 100%; padding: 9px; background: #075E54; color: #fff; border: none;
+      border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;
     }
+    .analyze-btn:hover { background: #064f47; }
+    .ai-loading { display: flex; align-items: center; gap: 8px; color: #667781; font-size: 12px; padding: 4px 0; }
     .ai-loading .spinner {
-      width: 14px; height: 14px;
-      border: 2px solid #e9edef;
-      border-top-color: #075E54;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
+      width: 14px; height: 14px; border: 2px solid #e9edef; border-top-color: #075E54;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .ai-result { display: flex; flex-direction: column; gap: 8px; }
-
-    .sentiment-badge {
-      display: inline-flex; align-items: center; gap: 4px;
-      padding: 3px 10px; border-radius: 99px;
-      font-size: 11px; font-weight: 600;
-    }
-    .sentiment-positive { background: #e8f5e9; color: #2e7d32; }
-    .sentiment-neutral  { background: #fff3e0; color: #e65100; }
-    .sentiment-negative { background: #fdecea; color: #c62828; }
-
-    .escalation-flag {
-      background: #fdecea;
-      border: 1px solid #f5c6c6;
-      border-radius: 6px;
-      padding: 6px 10px;
-      font-size: 12px;
-      color: #c62828;
-      display: flex; align-items: flex-start; gap: 6px;
+    /* REVIEW BANNER */
+    .review-banner {
+      background: #fff8e1; border: 1px solid #ffe082; border-radius: 6px;
+      padding: 6px 10px; font-size: 12px; color: #f57f17; margin-bottom: 8px;
     }
 
-    .ai-section { margin-bottom: 6px; }
-    .ai-section:last-child { margin-bottom: 0; }
-    .ai-section-title {
-      font-size: 10px; font-weight: 700;
-      color: #aaa; text-transform: uppercase;
-      letter-spacing: 0.05em; margin-bottom: 3px;
+    /* INSIGHT ROWS */
+    .insight-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 5px 0; border-bottom: 1px solid #f5f5f5; }
+    .insight-row:last-child { border-bottom: none; }
+    .insight-label { font-size: 11px; color: #667781; font-weight: 600; }
+    .insight-value { font-size: 12px; color: #111; text-align: right; max-width: 60%; }
+    .conf-badge {
+      display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 99px;
+      margin-left: 5px; font-weight: 600;
     }
-    .ai-section-body {
-      font-size: 12px; color: #111; line-height: 1.5;
+    .conf-high { background: #e8f5e9; color: #2e7d32; }
+    .conf-mid  { background: #fff3e0; color: #e65100; }
+    .conf-low  { background: #fdecea; color: #c62828; }
+
+    .tag {
+      display: inline-block; background: #e3f2fd; color: #1565c0;
+      font-size: 11px; padding: 2px 8px; border-radius: 99px; margin: 2px;
     }
-    .next-action {
-      background: #e8f4fd;
-      border-radius: 6px;
-      padding: 6px 10px;
-      font-size: 12px;
-      color: #0d47a1;
+    .mood-arrow { font-size: 13px; }
+
+    .evidence { font-size: 10px; color: #999; font-style: italic; margin-top: 2px; }
+
+    /* MORE TOGGLE */
+    .more-toggle {
+      width: 100%; text-align: center; padding: 6px; font-size: 11px;
+      color: #075E54; cursor: pointer; background: none; border: none; font-weight: 600;
     }
 
-    /* ── CASE DETAILS ── */
+    /* CASE DETAILS */
     .field { margin-bottom: 8px; }
     .field:last-child { margin-bottom: 0; }
-    .field label {
-      display: block; font-size: 11px;
-      color: #667781; margin-bottom: 4px;
-    }
+    .field label { display: block; font-size: 11px; color: #667781; margin-bottom: 4px; }
     .field input, .field select, .field textarea {
-      width: 100%;
-      padding: 7px 10px;
-      border: 1px solid #e9edef;
-      border-radius: 6px;
-      font-size: 13px;
-      color: #111;
-      background: #f0f2f5;
-      font-family: inherit;
+      width: 100%; padding: 7px 10px; border: 1px solid #e9edef; border-radius: 6px;
+      font-size: 13px; color: #111; background: #f0f2f5; font-family: inherit;
     }
     .field textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
-    .field input:focus, .field select:focus, .field textarea:focus {
-      outline: none;
-      border-color: #075E54;
-      background: #fff;
-    }
     .field-row { display: flex; gap: 8px; }
     .field-row .field { flex: 1; }
 
-    /* ── FOOTER ── */
-    .footer {
-      padding: 12px;
-      border-top: 1px solid #e9edef;
-      background: #fff;
-    }
+    /* FOOTER */
+    .footer { padding: 12px; border-top: 1px solid #e9edef; background: #fff; }
     .btn-create {
-      width: 100%; padding: 11px;
-      background: #075E54; color: #fff;
-      border: none; border-radius: 8px;
-      font-size: 14px; font-weight: 600;
-      cursor: pointer; display: flex;
-      align-items: center; justify-content: center; gap: 8px;
-      transition: background 0.15s;
+      width: 100%; padding: 11px; background: #075E54; color: #fff; border: none;
+      border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
     }
-    .btn-create:hover { background: #064f47; }
     .btn-create:disabled { background: #aaa; cursor: not-allowed; }
-
-    .status-msg {
-      text-align: center; font-size: 12px;
-      margin-top: 8px; min-height: 16px;
-    }
+    .status-msg { text-align: center; font-size: 12px; margin-top: 8px; min-height: 16px; }
     .status-msg.success { color: #2e7d32; }
     .status-msg.error { color: #c62828; }
 
-    /* ── SETUP SCREEN ── */
+    /* SETUP */
     #setup-screen { padding: 16px; }
-    #setup-screen h2 { font-size: 14px; margin-bottom: 6px; color: #111; }
+    #setup-screen h2 { font-size: 14px; margin-bottom: 6px; }
     #setup-screen p { font-size: 12px; color: #667781; margin-bottom: 12px; }
     #setup-screen input {
-      width: 100%; padding: 8px 10px;
-      border: 1px solid #e9edef; border-radius: 6px;
-      font-size: 13px; margin-bottom: 8px;
+      width: 100%; padding: 8px 10px; border: 1px solid #e9edef;
+      border-radius: 6px; font-size: 13px; margin-bottom: 8px;
     }
     #setup-screen button {
-      width: 100%; padding: 9px;
-      background: #075E54; color: #fff;
-      border: none; border-radius: 6px;
-      font-size: 13px; font-weight: 600; cursor: pointer;
+      width: 100%; padding: 9px; background: #075E54; color: #fff;
+      border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;
     }
 
     .hidden { display: none !important; }
@@ -224,19 +140,17 @@
 </head>
 <body>
 
-  <!-- SETUP SCREEN (shown on first install) -->
+  <!-- SETUP -->
   <div id="setup-screen" class="hidden">
     <h2>First time setup</h2>
-    <p>Enter your Salesforce org URL and Claude API key to get started.</p>
+    <p>Enter your Salesforce org URL and API key.</p>
     <input type="text" id="sf-url-input" placeholder="https://yourorg.lightning.force.com" />
-    <input type="password" id="api-key-input" placeholder="Claude API key (sk-ant-...)" />
+    <input type="password" id="api-key-input" placeholder="API key" />
     <button id="save-setup-btn">Save & continue</button>
   </div>
 
-  <!-- MAIN SCREEN -->
+  <!-- MAIN -->
   <div id="main-screen" class="hidden">
-
-    <!-- Header -->
     <div class="header">
       <div class="header-avatar" id="contact-avatar">?</div>
       <div>
@@ -247,77 +161,91 @@
 
     <div class="body">
 
-      <!-- Box 1: Date Range -->
+      <!-- Date Range -->
       <div class="box">
         <div class="box-label">📅 Date range</div>
         <div class="box-body">
           <div class="date-row">
-            <div class="date-field">
-              <label>From</label>
-              <input type="date" id="date-from" />
-            </div>
-            <div class="date-field">
-              <label>To</label>
-              <input type="date" id="date-to" />
-            </div>
+            <div class="date-field"><label>From</label><input type="date" id="date-from" /></div>
+            <div class="date-field"><label>To</label><input type="date" id="date-to" /></div>
           </div>
-          <div class="msg-count">
-            <span id="msg-count">0</span> messages selected
-          </div>
+          <div class="msg-count"><span id="msg-count">0</span> messages selected</div>
         </div>
       </div>
 
-      <!-- Box 2: Conversation Preview -->
+      <!-- Preview -->
       <div class="box">
         <div class="box-label">💬 Conversation preview</div>
         <div class="box-body">
           <div class="preview" id="preview-body">
-            <span class="preview-empty">Pick a date range to preview messages</span>
+            <span class="preview-empty">Pick a date range to preview</span>
           </div>
         </div>
       </div>
 
-      <!-- Box 3: AI Analysis -->
+      <!-- AI Analysis -->
       <div class="box">
         <div class="box-label">✨ AI analysis</div>
         <div class="box-body">
-        <div id="ai-idle">
-            <button id="analyze-btn" style="width:100%; padding:9px; background:#075E54; color:#fff; border:none; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer;">
-                ✨ Analyze with AI
-            </button>
-        </div>
-          <div id="ai-loading" class="ai-loading hidden">
-            <div class="spinner"></div>
-            Analyzing conversation...
+          <div id="ai-idle">
+            <button class="analyze-btn" id="analyze-btn">✨ Analyze with AI</button>
           </div>
-          <div id="ai-result" class="ai-result hidden">
-            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-              <span id="sentiment-badge" class="sentiment-badge"></span>
-              <span id="lang-badge" style="font-size:11px; color:#667781;"></span>
+          <div id="ai-loading" class="ai-loading hidden">
+            <div class="spinner"></div> Analyzing conversation...
+          </div>
+          <div id="ai-result" class="hidden">
+            <div id="review-banner" class="review-banner hidden">
+              ⚠️ Some fields need your review — please verify before creating the case.
             </div>
-            <div id="escalation-flag" class="escalation-flag hidden">
-              ⚠️ <span id="escalation-reason"></span>
+
+            <!-- Key insights always visible -->
+            <div class="insight-row">
+              <span class="insight-label">Category</span>
+              <span class="insight-value" id="r-category"></span>
             </div>
-            <div class="ai-section">
-              <div class="ai-section-title">Issue</div>
-              <div class="ai-section-body" id="ai-issue"></div>
+            <div class="insight-row">
+              <span class="insight-label">Sub-category</span>
+              <span class="insight-value" id="r-subcategory"></span>
             </div>
-            <div class="ai-section">
-              <div class="ai-section-title">Action taken</div>
-              <div class="ai-section-body" id="ai-action"></div>
+            <div class="insight-row">
+              <span class="insight-label">Mood trend</span>
+              <span class="insight-value" id="r-mood"></span>
             </div>
-            <div class="ai-section">
-              <div class="ai-section-title">Outcome</div>
-              <div class="ai-section-body" id="ai-outcome"></div>
+            <div class="insight-row">
+              <span class="insight-label">Resolution</span>
+              <span class="insight-value" id="r-resolution"></span>
             </div>
-            <div class="next-action" id="next-action-box">
-              💡 <span id="ai-next-action"></span>
+            <div class="insight-row">
+              <span class="insight-label">Escalation</span>
+              <span class="insight-value" id="r-escalation"></span>
             </div>
+
+            <!-- More details (hidden by default) -->
+            <div id="more-details" class="hidden">
+              <div class="insight-row">
+                <span class="insight-label">Action owner</span>
+                <span class="insight-value" id="r-owner"></span>
+              </div>
+              <div class="insight-row">
+                <span class="insight-label">Pending info</span>
+                <span class="insight-value" id="r-pending"></span>
+              </div>
+              <div class="insight-row">
+                <span class="insight-label">Priority</span>
+                <span class="insight-value" id="r-priority"></span>
+              </div>
+              <div class="insight-row" style="flex-direction:column; align-items:flex-start;">
+                <span class="insight-label" style="margin-bottom:4px;">Insight tags</span>
+                <span id="r-tags"></span>
+              </div>
+            </div>
+
+            <button class="more-toggle" id="more-toggle">Show more ▾</button>
           </div>
         </div>
       </div>
 
-      <!-- Box 4: Case Details -->
+      <!-- Case Details -->
       <div class="box">
         <div class="box-label">📋 Case details</div>
         <div class="box-body">
@@ -325,27 +253,9 @@
             <label>Subject</label>
             <input type="text" id="case-subject" placeholder="Auto-filled by AI..." />
           </div>
-          <div class="field-row">
-            <div class="field">
-              <label>Priority</label>
-              <select id="case-priority">
-                <option value="High">High</option>
-                <option value="Medium" selected>Medium</option>
-                <option value="Low">Low</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>Category</label>
-              <select id="case-category">
-                <option>Login / Access</option>
-                <option>Billing</option>
-                <option>Technical Issue</option>
-                <option>Account Update</option>
-                <option>Onboarding</option>
-                <option>Scam / Fraud</option>
-                <option>General Enquiry</option>
-              </select>
-            </div>
+          <div class="field">
+            <label id="phone-label">Phone number</label>
+            <input type="text" id="case-phone" placeholder="Enter customer's phone number" />
           </div>
           <div class="field">
             <label>Description</label>
@@ -356,14 +266,10 @@
 
     </div>
 
-    <!-- Footer -->
     <div class="footer">
-      <button class="btn-create" id="create-btn" disabled>
-        Create case in Salesforce
-      </button>
+      <button class="btn-create" id="create-btn" disabled>Create case in Salesforce</button>
       <div class="status-msg" id="status-msg"></div>
     </div>
-
   </div>
 
   <script src="categories.js"></script>
