@@ -128,6 +128,11 @@ function setupListeners() {
 
   // Enable/disable Create button as phone is typed
   document.getElementById("case-phone").addEventListener("input", updateCreateButtonState);
+
+  // Re-analyze button (forces fresh AI run)
+  document.getElementById("reanalyze-btn").addEventListener("click", () => {
+    runAIAnalysis();
+  });
 }
 
 // ── DATE FILTER ────────────────────────────────────────────────
@@ -152,6 +157,19 @@ function applyDateFilter() {
   document.getElementById("msg-count").textContent = filteredMessages.length;
   renderPreview();
   resetAI();
+
+  // Try to load cached analysis for this date range
+  if (filteredMessages.length > 0) {
+    loadFromCache().then((cached) => {
+      if (cached) {
+        aiResult = cached;
+        renderInsights(aiResult);
+        populateCaseFields(aiResult);
+        updateCreateButtonState();
+        setStatus("Showing saved analysis (cached).", "success");
+      }
+    });
+  }
 }
 
 // ── PREVIEW ────────────────────────────────────────────────────
@@ -204,6 +222,8 @@ async function runAIAnalysis() {
     aiResult = validateAIResult(raw);
 
     console.log("Validation issues:", aiResult._validationIssues);
+
+    await saveToCache(aiResult); // cache it for 30 min
 
     renderInsights(aiResult);
     populateCaseFields(aiResult);
@@ -379,4 +399,35 @@ function toDateInputValue(date) {
 }
 function escapeHtml(str) {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// ── CACHE (30 min expiry) ──────────────────────────────────────
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+// Build a unique key for this conversation + date range
+function getCacheKey() {
+  const from = document.getElementById("date-from").value;
+  const to = document.getElementById("date-to").value;
+  return `cache:${contactName}:${from}:${to}`;
+}
+
+async function saveToCache(result) {
+  const key = getCacheKey();
+  const entry = { result, savedAt: Date.now() };
+  await chrome.storage.local.set({ [key]: entry });
+}
+
+async function loadFromCache() {
+  const key = getCacheKey();
+  const data = await chrome.storage.local.get(key);
+  const entry = data[key];
+  if (!entry) return null;
+
+  // Check expiry
+  const age = Date.now() - entry.savedAt;
+  if (age > CACHE_TTL_MS) {
+    await chrome.storage.local.remove(key); // expired, clean up
+    return null;
+  }
+  return entry.result;
 }
