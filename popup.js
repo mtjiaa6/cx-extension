@@ -109,7 +109,6 @@ function applyDateFilter() {
   document.getElementById("msg-count").textContent = filteredMessages.length;
   renderPreview();
 
-  // Don't auto-run AI — wait for the button click
   resetAI();
 }
 
