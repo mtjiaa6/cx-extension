@@ -259,42 +259,77 @@ async function runAIAnalysis() {
 
 // ── RENDER INSIGHTS ────────────────────────────────────────────
 function renderInsights(r) {
-  // Review banner
   document.getElementById("review-banner").classList.toggle("hidden", !r.needsReview);
 
-  // Key insights
-  setInsight("r-category", r.case_management.category);
-  setInsight("r-subcategory", r.case_management.sub_category);
+  // Summary
+  document.getElementById("r-summary").textContent =
+    `${r.summary.issue} ${r.summary.action_taken} ${r.summary.outcome}`;
 
-  // Mood trend with arrow
-  const moodArrow = { Improving: "📈", Worsening: "📉", Stable: "➡️" }[r.mood.mood_trend.value] || "";
-  document.getElementById("r-mood").innerHTML =
-    `${r.mood.mood_start} → ${r.mood.mood_end} ${moodArrow} ${confBadge(r.mood.mood_trend.confidence)}`;
+  // Category
+  renderBlock("block-category", "CATEGORY",
+    `${r.case_management.category.value} → ${r.case_management.sub_category.value}`,
+    r.case_management.category.evidence,
+    r.case_management.category.confidence);
 
-  setInsight("r-resolution", r.resolution.status);
+  // Mood
+  const trend = r.mood.mood_trend.value ? ` (${r.mood.mood_trend.value.toLowerCase()})` : "";
+  renderBlock("block-mood", "MOOD TREND",
+    `${r.mood.mood_start} → ${r.mood.mood_end}${trend}`,
+    r.mood.mood_trend.evidence,
+    r.mood.mood_trend.confidence);
 
-  // Escalation (boolean)
+  // Escalation
   const esc = r.follow_up.escalation_required;
-  document.getElementById("r-escalation").innerHTML =
-    `${esc.value ? "🚨 Yes" : "No"} ${confBadge(esc.confidence)}`;
+  renderBlock("block-escalation", "ESCALATION",
+    esc.value ? `🚨 Required → ${r.follow_up.action_owner.value}` : "Not required",
+    esc.evidence,
+    esc.confidence,
+    esc.value);
+
+  // Resolution
+  renderBlock("block-resolution", "RESOLUTION",
+    r.resolution.status.value,
+    r.resolution.status.evidence,
+    r.resolution.status.confidence);
 
   // More details
-  setInsight("r-owner", r.follow_up.action_owner);
-  document.getElementById("r-pending").textContent = r.follow_up.pending_information;
-  setInsight("r-priority", r.priority);
+  renderBlock("block-owner", "ACTION OWNER",
+    r.follow_up.action_owner.value,
+    r.follow_up.action_owner.evidence,
+    r.follow_up.action_owner.confidence);
 
-  // Tags
-  document.getElementById("r-tags").innerHTML = r.customer_insights.tags.length
+  renderBlock("block-priority", "PRIORITY",
+    r.priority.value,
+    r.priority.evidence,
+    r.priority.confidence);
+
+  document.getElementById("block-pending").innerHTML = `
+    <div class="insight-head"><span class="insight-label">PENDING INFO</span></div>
+    <div class="insight-value">${escapeHtml(r.follow_up.pending_information)}</div>`;
+
+  const tagsHtml = r.customer_insights.tags.length
     ? r.customer_insights.tags.map(t => `<span class="tag">${t.value}</span>`).join("")
     : "<span style='color:#aaa;font-size:11px;'>None detected</span>";
+  document.getElementById("block-tags").innerHTML = `
+    <div class="insight-head"><span class="insight-label">INSIGHT TAGS</span></div>
+    <div style="margin-top:4px;">${tagsHtml}</div>`;
 
   showAIState("result");
 }
 
-// Helper: render value + confidence badge
-function setInsight(elId, insight) {
-  const val = insight.value !== null ? insight.value : "—";
-  document.getElementById(elId).innerHTML = `${val} ${confBadge(insight.confidence)}`;
+// Helper: render one insight block with value + evidence + confidence
+function renderBlock(elId, label, value, evidence, confidence, alert = false) {
+  const valClass = alert ? "insight-value alert" : "insight-value";
+  const evidenceHtml = evidence
+    ? `<div class="insight-evidence">"${escapeHtml(evidence)}"</div>`
+    : "";
+  document.getElementById(elId).innerHTML = `
+    <div class="insight-head">
+      <span class="insight-label">${label}</span>
+      ${confBadge(confidence)}
+    </div>
+    <div class="${valClass}">${escapeHtml(value)}</div>
+    ${evidenceHtml}`;
 }
 
 // Helper: confidence badge HTML
