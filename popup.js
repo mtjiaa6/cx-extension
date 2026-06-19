@@ -22,10 +22,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 document.getElementById("v-name").addEventListener("input", updateContinueButtonState);
 document.getElementById("v-phone").addEventListener("input", updateContinueButtonState);
 
-document.getElementById("v-continue-btn").addEventListener("click", () => {
-  // Lock in the confirmed name + phone
+document.getElementById("v-continue-btn").addEventListener("click", async () => {
   contactName = document.getElementById("v-name").value.trim();
   contactPhone = document.getElementById("v-phone").value.trim();
+
+  await chrome.storage.local.set({
+    [`verified:${contactName}`]: { name: contactName, phone: contactPhone, savedAt: Date.now() }
+  });
 
   // Fill the main screen header + phone field
   document.getElementById("contact-name").textContent = contactName;
@@ -65,7 +68,7 @@ async function loadConversation() {
     setStatus("Please open a WhatsApp conversation first.", "error");
     return;
   }
-  chrome.tabs.sendMessage(tab.id, { action: "getConversation" }, (response) => {
+  chrome.tabs.sendMessage(tab.id, { action: "getConversation" }, async (response) => {
     if (!response) {
       setStatus("Could not read WhatsApp. Refresh the page.", "error");
       return;
@@ -101,8 +104,26 @@ async function loadConversation() {
       vPhoneLabel.style.color = "#e65100";
     }
 
-    showScreen("verify");
-    updateContinueButtonState();
+    // Skip verify if we confirmed this contact in the last 30 min
+    const vData = await chrome.storage.local.get(`verified:${contactName}`);
+    const vEntry = vData[`verified:${contactName}`];
+
+    if (vEntry && (Date.now() - vEntry.savedAt) < CACHE_TTL_MS) {
+      contactName = vEntry.name;
+      contactPhone = vEntry.phone;
+      document.getElementById("contact-name").textContent = contactName;
+      document.getElementById("contact-phone").textContent = contactPhone;
+      document.getElementById("contact-avatar").textContent = getInitials(contactName);
+      document.getElementById("case-phone").value = contactPhone;
+      showScreen("main");
+      const today = toDateInputValue(new Date());
+      document.getElementById("date-from").value = today;
+      document.getElementById("date-to").value = today;
+      applyDateFilter();
+    } else {
+      showScreen("verify");
+      updateContinueButtonState();
+    }
   });
 }
 
