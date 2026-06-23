@@ -268,44 +268,50 @@ function renderInsights(r) {
   // Category
   renderBlock("block-category", "CATEGORY",
     `${r.case_management.category.value} → ${r.case_management.sub_category.value}`,
-    r.case_management.category.evidence,
+    r.case_management.category.reasoning,
     r.case_management.category.confidence);
 
   // Mood
   const trend = r.mood.mood_trend.value ? ` (${r.mood.mood_trend.value.toLowerCase()})` : "";
   renderBlock("block-mood", "MOOD TREND",
     `${r.mood.mood_start} → ${r.mood.mood_end}${trend}`,
-    r.mood.mood_trend.evidence,
+    r.mood.mood_trend.reasoning,
     r.mood.mood_trend.confidence);
 
   // Escalation
   const esc = r.follow_up.escalation_required;
   renderBlock("block-escalation", "ESCALATION",
     esc.value ? `🚨 Required → ${r.follow_up.action_owner.value}` : "Not required",
-    esc.evidence,
+    esc.reasoning,
     esc.confidence,
     esc.value);
 
   // Resolution
   renderBlock("block-resolution", "RESOLUTION",
     r.resolution.status.value,
-    r.resolution.status.evidence,
+    r.resolution.status.reasoning,
     r.resolution.status.confidence);
 
   // More details
   renderBlock("block-owner", "ACTION OWNER",
     r.follow_up.action_owner.value,
-    r.follow_up.action_owner.evidence,
+    r.follow_up.action_owner.reasoning,
     r.follow_up.action_owner.confidence);
 
   renderBlock("block-priority", "PRIORITY",
     r.priority.value,
-    r.priority.evidence,
+    r.priority.reasoning,
     r.priority.confidence);
 
+  const steps = r.follow_up.next_steps;
+  const stepsHtml = steps.length
+    ? `<ol style="margin:4px 0 0 18px; padding:0; font-size:13px; line-height:1.6;">${
+        steps.map(s => `<li>${escapeHtml(s)}</li>`).join("")
+      }</ol>`
+    : "<div class='insight-value'>No further action needed</div>";
   document.getElementById("block-pending").innerHTML = `
-    <div class="insight-head"><span class="insight-label">PENDING INFO</span></div>
-    <div class="insight-value">${escapeHtml(r.follow_up.pending_information)}</div>`;
+    <div class="insight-head"><span class="insight-label">NEXT STEPS</span></div>
+    ${stepsHtml}`;
 
   const tagsHtml = r.customer_insights.tags.length
     ? r.customer_insights.tags.map(t => `<span class="tag">${t.value}</span>`).join("")
@@ -317,11 +323,11 @@ function renderInsights(r) {
   showAIState("result");
 }
 
-// Helper: render one insight block with value + evidence + confidence
-function renderBlock(elId, label, value, evidence, confidence, alert = false) {
+// Helper: render one insight block with value + reasoning + confidence
+function renderBlock(elId, label, value, reasoning, confidence, alert = false) {
   const valClass = alert ? "insight-value alert" : "insight-value";
-  const evidenceHtml = evidence
-    ? `<div class="insight-evidence">"${escapeHtml(evidence)}"</div>`
+  const reasoningHtml = reasoning
+    ? `<div class="insight-reasoning">"${escapeHtml(reasoning)}"</div>`
     : "";
   document.getElementById(elId).innerHTML = `
     <div class="insight-head">
@@ -329,7 +335,7 @@ function renderBlock(elId, label, value, evidence, confidence, alert = false) {
       ${confBadge(confidence)}
     </div>
     <div class="${valClass}">${escapeHtml(value)}</div>
-    ${evidenceHtml}`;
+    ${reasoningHtml}`;
 }
 
 // Helper: confidence badge HTML
@@ -344,8 +350,8 @@ function confBadge(conf) {
 
 // ── POPULATE CASE FIELDS ───────────────────────────────────────
 function populateCaseFields(r) {
-  document.getElementById("case-subject").value = r.summary.subject || "";
-
+  // Build subject in WA(PG) format: WA(PG) - [SUMMARY CAPS] | [STATUS]
+  document.getElementById("case-subject").value = buildSubject(r);
   // Build the structured transcript
   const transcript = filteredMessages
     .map((m) => `[${m.time || ""}] ${m.sender}: ${m.text}`)
@@ -360,14 +366,14 @@ function populateCaseFields(r) {
     `OUTCOME\n${r.summary.outcome}`,
     ``,
     `───────────────────────`,
-    `CASE DETAILS`,
+    `NEXT STEPS`,
     `───────────────────────`,
-    `Category: ${r.case_management.category.value} → ${r.case_management.sub_category.value}`,
-    `Resolution: ${r.resolution.status.value}`,
-    `Action Owner: ${r.follow_up.action_owner.value}`,
-    `Escalation: ${r.follow_up.escalation_required.value ? "Yes" : "No"}`,
-    `Pending Info: ${r.follow_up.pending_information}`,
-    `Mood: ${r.mood.mood_start} → ${r.mood.mood_end} (${r.mood.mood_trend.value})`,
+    r.follow_up.next_steps.map((s, i) => `${i + 1}. ${s}`).join("\n"),
+    ``,
+    `───────────────────────`,
+    `CUSTOMER MOOD`,
+    `───────────────────────`,
+    r.mood.mood_trend.reasoning || "Mood scenario not available.",
     ``,
     `───────────────────────`,
     `CONTACT`,
@@ -384,6 +390,27 @@ function populateCaseFields(r) {
   document.getElementById("case-description").value = desc;
 }
 
+// Build subject: WA(PG) - SUMMARY | STATUS
+function buildSubject(r) {
+  // Map SF status → subject ending word
+  const statusMap = {
+    "Closed": "COMPLETED",
+    "Working": "PENDING",
+    "On Hold": "PENDING",
+    "Escalated": "ESCALATED",
+    "New": "NEW",
+    "Reopen": "REOPENED"
+  };
+  const status = r.resolution?.status?.value || "New";
+  const ending = statusMap[status] || "NEW";
+
+  // Use the AI subject as the summary, strip any existing WA(PG) prefix, uppercase it
+  let summary = (r.summary?.subject || "Case").toUpperCase();
+  summary = summary.replace(/^WA\(PG\)\s*-\s*/i, "").replace(/\s*\|.*$/, "").trim();
+
+  return `WA(PG) - ${summary} | ${ending}`;
+}
+
 // ── CREATE CASE ────────────────────────────────────────────────
 document.getElementById("create-btn").addEventListener("click", async () => {
   const phone = document.getElementById("case-phone").value.trim();
@@ -396,14 +423,18 @@ document.getElementById("create-btn").addEventListener("click", async () => {
 
   const { sfUrl } = await chrome.storage.local.get("sfUrl");
 
-  // Inject the latest phone into the description
   const finalDescription = document.getElementById("case-description").value
     .replace(/Phone:.*$/m, `Phone: ${phone}`);
 
+  // Pass ALL structured fields to background for dropdown filling
   const caseData = {
     subject: document.getElementById("case-subject").value,
     priority: aiResult?.priority?.value || "Medium",
+    status: aiResult?.resolution?.status?.value || "New",
     category: aiResult?.case_management?.category?.value || "",
+    subCategory: aiResult?.case_management?.sub_category?.value || "",
+    caseChannel: "Phone",
+    internalExternal: "External",
     description: finalDescription,
     contactName,
     contactPhone: phone,

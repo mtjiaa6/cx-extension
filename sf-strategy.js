@@ -20,8 +20,11 @@ function domStrategy(caseData) {
     fields: {
       Subject: subject,
       Priority: priority,
-      Type: category,
-      Origin: "Chat",
+      Status: caseData.status,
+      Category: category,
+      SubCategory: caseData.subCategory,
+      CaseChannel: caseData.caseChannel,
+      InternalExternal: caseData.internalExternal,
       Description: buildFullDescription(caseData)
     }
   };

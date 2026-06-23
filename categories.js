@@ -206,5 +206,9 @@ const INSIGHT_TAGS = [
 
 const MOODS               = ["Calm", "Neutral", "Frustrated", "Angry"];
 const MOOD_TRENDS         = ["Improving", "Worsening", "Stable"];
-const RESOLUTION_STATUSES = ["Resolved", "Pending", "Unresolved", "Escalated"];
+const RESOLUTION_STATUSES = ["New", "Working", "On Hold", "Escalated", "Closed", "Reopen"];
+
+
+const CASE_CHANNELS = ["Phone", "Email", "Web", "None"];
+const INTERNAL_EXTERNAL = ["Internal", "External", "None"];
 const PRIORITIES          = ["High", "Medium", "Low"];

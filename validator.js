@@ -12,7 +12,7 @@ function validateAIResult(raw) {
       return { value: null, confidence: 0, evidence: "", needsReview: true };
     }
 
-    let { value, confidence, evidence } = block;
+    let { value, confidence, reasoning } = block;
 
     // Check value is in allowed list
     if (allowedValues && !allowedValues.includes(value)) {
@@ -33,7 +33,7 @@ function validateAIResult(raw) {
     return {
       value,
       confidence,
-      evidence: evidence || "",
+      reasoning: reasoning || "",
       needsReview
     };
   }
@@ -76,7 +76,7 @@ function validateAIResult(raw) {
   const escalation_required = {
     value:      escalationValue,
     confidence: Math.min(1, Math.max(0, Number(escalationRaw?.confidence) || 0)),
-    evidence:   escalationRaw?.evidence || "",
+    reasoning:   escalationRaw?.reasoning || "",
     needsReview: (Number(escalationRaw?.confidence) || 0) < CONFIDENCE_THRESHOLD
   };
 
@@ -104,7 +104,9 @@ function validateAIResult(raw) {
     case_management: { category, sub_category },
     follow_up: {
       action_owner,
-      pending_information: raw.follow_up?.pending_information || "None",
+      next_steps: Array.isArray(raw.follow_up?.next_steps)
+        ? raw.follow_up.next_steps.filter(s => typeof s === "string" && s.trim())
+        : [],
       escalation_required
     },
     customer_insights: { tags },
