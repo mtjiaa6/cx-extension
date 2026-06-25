@@ -78,7 +78,10 @@ ${RESOLUTION_STATUSES.join(", ")}
   - Escalated = passed to another team
   - Closed = fully resolved, nothing more needed
   - Reopen = was closed but reopened
-PRIORITY (pick ONE): ${PRIORITIES.join(", ")}
+PRIORITY (pick ONE based on this framework):
+- High: Technical issues with significant business impact, or affecting single/multiple/all agents. Examples: URGENT account detail changes, system access errors, app malfunctions affecting all users.
+- Medium: Directory or moderation-related issues, or non-urgent requests to change account details. Examples: email address updates, directory updates, account detail changes.
+- Low: General inquiries or minor issues requiring minimal follow-up. Examples: information requests, spam emails, general enquiries.
 
 ═══════════════════════════════════════════════════════════════
 THE CONVERSATION:

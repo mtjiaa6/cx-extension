@@ -61,10 +61,9 @@ document.getElementById("save-setup-btn").addEventListener("click", async () => 
   setupListeners();
 });
 
-// ── LOAD CONVERSATION ──────────────────────────────────────────
 async function loadConversation() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab.url.includes("web.whatsapp.com")) {
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  if (!tab || !tab.url?.includes("web.whatsapp.com")) {
     setStatus("Please open a WhatsApp conversation first.", "error");
     return;
   }
@@ -122,8 +121,9 @@ async function loadConversation() {
         document.getElementById("case-phone").value = contactPhone;
         showScreen("main");
         const today = toDateInputValue(new Date());
-        document.getElementById("date-from").value = today;
-        document.getElementById("date-to").value = today;
+        const saved = await chrome.storage.local.get(["lastDateFrom", "lastDateTo"]);
+        document.getElementById("date-from").value = saved.lastDateFrom || today;
+        document.getElementById("date-to").value = saved.lastDateTo || today;
         applyDateFilter();
       } else {
         showScreen("verify");
@@ -164,11 +164,29 @@ function setupListeners() {
   });
 }
 
+chrome.tabs.onActivated.addListener(() => {
+  setTimeout(() => loadConversation(), 500);
+});
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === "complete" && tab.url?.includes("web.whatsapp.com")) {
+    loadConversation();
+  }
+});
+
+chrome.runtime.onMessage.addListener((request) => {
+  if (request.action === "chatChanged") {
+    setTimeout(() => loadConversation(), 500);
+  }
+});
+
+
 // ── DATE FILTER ────────────────────────────────────────────────
 function applyDateFilter() {
   const fromVal = document.getElementById("date-from").value;
   const toVal = document.getElementById("date-to").value;
   if (!fromVal || !toVal) return;
+
+  chrome.storage.local.set({ lastDateFrom: fromVal, lastDateTo: toVal });
 
   const from = new Date(fromVal);
   const to = new Date(toVal);

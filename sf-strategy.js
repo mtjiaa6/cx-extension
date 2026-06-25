@@ -25,7 +25,8 @@ function domStrategy(caseData) {
       SubCategory: caseData.subCategory,
       CaseChannel: caseData.caseChannel,
       InternalExternal: caseData.internalExternal,
-      Description: buildFullDescription(caseData)
+      Description: buildFullDescription(caseData),
+      ContactName: contactPhone
     }
   };
 }

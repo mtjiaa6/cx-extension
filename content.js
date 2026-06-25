@@ -134,3 +134,15 @@ function parseTimestamp(rawMeta) {
 
   return { time: timeStr, date };
 }
+
+// ── CHAT CHANGE DETECTOR ──────────────────────────────────────
+let lastContact = "";
+new MutationObserver(() => {
+  const nameEl = document.querySelector("header span[dir='auto']");
+  const currentContact = nameEl ? nameEl.innerText.trim() : "";
+  if (currentContact && currentContact !== lastContact) {
+    lastContact = currentContact;
+    console.log("WA→SF: chat changed to", currentContact);
+    chrome.runtime.sendMessage({ action: "chatChanged" });
+  }
+}).observe(document.body, { subtree: true, childList: true });
