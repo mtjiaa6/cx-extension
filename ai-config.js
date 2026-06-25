@@ -105,7 +105,7 @@ No markdown, no code fences, no extra text before or after.
   "follow_up": {
     "action_owner": { "value": "<one owner>", "confidence": 0.0, "reasoning": "<brief explanation why>" },
     "next_steps": ["step 1", "step 2", "step 3"],
-    "escalation_required": { "value": true, "confidence": 0.0, "reasoning": "<brief explanation why>" }
+    "escalation": { "value": "<which team it was escalated to, e.g. Moderation Team, Sales Team, Tech Team. If nothing was escalated, use 'None'>", "confidence": 0.0, "reasoning": "<one sentence summarizing what the agent escalated and why>" }
   },
   "customer_insights": {
     "tags": [

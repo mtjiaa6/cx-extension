@@ -1,14 +1,15 @@
 {
     "manifest_version": 3,
     "name": "WhatsApp -> Salesforce Case Creator",
-    "version": "1.0",
+    "version": "2.0",
     "description": "A Chrome extension to create Salesforce cases from WhatsApp messages.",
 
     "permissions": [
         "activeTab",
         "cookies",
         "scripting",
-        "storage"
+        "storage",
+        "sidePanel"
     ],
 
     "host_permissions": [
@@ -17,8 +18,11 @@
         "https://*.force.com/*"
     ],
 
+    "side_panel": {
+        "default_path": "popup.html"
+    },
+
     "action": {
-        "default_popup": "popup.html",
         "default_icon": {
             "16": "icons/icon16.png",
             "48": "icons/icon48.png",

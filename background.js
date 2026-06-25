@@ -4,6 +4,11 @@
 
 importScripts("sf-strategy.js");
 
+chrome.action.onClicked.addListener((tab) => {
+  // Open the popup when the extension icon is clicked
+  chrome.sidePanel.open({tabId: tab.id});
+});
+
 // ── MESSAGE LISTENER ───────────────────────────────────────────
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "createCase") {

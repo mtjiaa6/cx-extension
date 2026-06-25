@@ -70,13 +70,12 @@ function validateAIResult(raw) {
     "action_owner"
   );
 
-  // escalation_required is boolean — special handling
-  const escalationRaw = raw.follow_up?.escalation_required;
-  const escalationValue = escalationRaw?.value === true || escalationRaw?.value === "true";
-  const escalation_required = {
-    value:      escalationValue,
+  // escalation is now a text value (team name or "None")
+  const escalationRaw = raw.follow_up?.escalation;
+  const escalation = {
+    value:      escalationRaw?.value || "None",
     confidence: Math.min(1, Math.max(0, Number(escalationRaw?.confidence) || 0)),
-    reasoning:   escalationRaw?.reasoning || "",
+    reasoning:  escalationRaw?.reasoning || "",
     needsReview: (Number(escalationRaw?.confidence) || 0) < CONFIDENCE_THRESHOLD
   };
 
@@ -107,7 +106,7 @@ function validateAIResult(raw) {
       next_steps: Array.isArray(raw.follow_up?.next_steps)
         ? raw.follow_up.next_steps.filter(s => typeof s === "string" && s.trim())
         : [],
-      escalation_required
+      escalation
     },
     customer_insights: { tags },
     mood,
@@ -118,7 +117,7 @@ function validateAIResult(raw) {
     needsReview: [
       category.needsReview,
       sub_category.needsReview,
-      escalation_required.needsReview,
+      escalation.needsReview,
       resolution.status.needsReview
     ].some(Boolean),
 

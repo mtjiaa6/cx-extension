@@ -68,63 +68,71 @@ async function loadConversation() {
     setStatus("Please open a WhatsApp conversation first.", "error");
     return;
   }
-  chrome.tabs.sendMessage(tab.id, { action: "getConversation" }, async (response) => {
-    if (!response) {
-      setStatus("Could not read WhatsApp. Refresh the page.", "error");
-      return;
-    }
-    allMessages = response.messages || [];
-    contactName = response.contactName || "";
-    contactPhone = response.phoneNumber || "";
 
-    // Populate the VERIFY screen
-    document.getElementById("v-avatar").textContent = getInitials(contactName || "?");
+  function tryConnect(tabId, retries = 5, delay = 800) {
+    chrome.tabs.sendMessage(tabId, { action: "getConversation" }, async (response) => {
+      if (chrome.runtime.lastError || !response) {
+        if (retries > 0) {
+          setTimeout(() => tryConnect(tabId, retries - 1, delay), delay);
+        } else {
+          setStatus("Could not read WhatsApp. Refresh the page.", "error");
+        }
+        return;
+      }
 
-    const vName = document.getElementById("v-name");
-    const vNameLabel = document.getElementById("v-name-label");
-    if (contactName) {
-      vName.value = contactName;
-      vNameLabel.innerHTML = "Name ✓ (auto-detected)";
-      vNameLabel.style.color = "#2e7d32";
-    } else {
-      vName.value = "";
-      vNameLabel.innerHTML = "Name ⚠️ (please enter)";
-      vNameLabel.style.color = "#e65100";
-    }
+      allMessages = response.messages || [];
+      contactName = response.contactName || "";
+      contactPhone = response.phoneNumber || "";
 
-    const vPhone = document.getElementById("v-phone");
-    const vPhoneLabel = document.getElementById("v-phone-label");
-    if (contactPhone) {
-      vPhone.value = contactPhone;
-      vPhoneLabel.innerHTML = "Phone number ✓ (auto-detected)";
-      vPhoneLabel.style.color = "#2e7d32";
-    } else {
-      vPhone.value = "";
-      vPhoneLabel.innerHTML = "Phone number ⚠️ (please enter)";
-      vPhoneLabel.style.color = "#e65100";
-    }
+      document.getElementById("v-avatar").textContent = getInitials(contactName || "?");
 
-    // Skip verify if we confirmed this contact in the last 30 min
-    const vData = await chrome.storage.local.get(`verified:${contactName}`);
-    const vEntry = vData[`verified:${contactName}`];
+      const vName = document.getElementById("v-name");
+      const vNameLabel = document.getElementById("v-name-label");
+      if (contactName) {
+        vName.value = contactName;
+        vNameLabel.innerHTML = "Name ✓ (auto-detected)";
+        vNameLabel.style.color = "#2e7d32";
+      } else {
+        vName.value = "";
+        vNameLabel.innerHTML = "Name ⚠️ (please enter)";
+        vNameLabel.style.color = "#e65100";
+      }
 
-    if (vEntry && (Date.now() - vEntry.savedAt) < CACHE_TTL_MS) {
-      contactName = vEntry.name;
-      contactPhone = vEntry.phone;
-      document.getElementById("contact-name").textContent = contactName;
-      document.getElementById("contact-phone").textContent = contactPhone;
-      document.getElementById("contact-avatar").textContent = getInitials(contactName);
-      document.getElementById("case-phone").value = contactPhone;
-      showScreen("main");
-      const today = toDateInputValue(new Date());
-      document.getElementById("date-from").value = today;
-      document.getElementById("date-to").value = today;
-      applyDateFilter();
-    } else {
-      showScreen("verify");
-      updateContinueButtonState();
-    }
-  });
+      const vPhone = document.getElementById("v-phone");
+      const vPhoneLabel = document.getElementById("v-phone-label");
+      if (contactPhone) {
+        vPhone.value = contactPhone;
+        vPhoneLabel.innerHTML = "Phone number ✓ (auto-detected)";
+        vPhoneLabel.style.color = "#2e7d32";
+      } else {
+        vPhone.value = "";
+        vPhoneLabel.innerHTML = "Phone number ⚠️ (please enter)";
+        vPhoneLabel.style.color = "#e65100";
+      }
+
+      const vData = await chrome.storage.local.get(`verified:${contactName}`);
+      const vEntry = vData[`verified:${contactName}`];
+
+      if (vEntry && (Date.now() - vEntry.savedAt) < CACHE_TTL_MS) {
+        contactName = vEntry.name;
+        contactPhone = vEntry.phone;
+        document.getElementById("contact-name").textContent = contactName;
+        document.getElementById("contact-phone").textContent = contactPhone;
+        document.getElementById("contact-avatar").textContent = getInitials(contactName);
+        document.getElementById("case-phone").value = contactPhone;
+        showScreen("main");
+        const today = toDateInputValue(new Date());
+        document.getElementById("date-from").value = today;
+        document.getElementById("date-to").value = today;
+        applyDateFilter();
+      } else {
+        showScreen("verify");
+        updateContinueButtonState();
+      }
+    });
+  }
+
+  tryConnect(tab.id);
 }
 
 // ── LISTENERS ──────────────────────────────────────────────────
@@ -279,12 +287,13 @@ function renderInsights(r) {
     r.mood.mood_trend.confidence);
 
   // Escalation
-  const esc = r.follow_up.escalation_required;
+  const esc = r.follow_up.escalation;
+  const escalated = esc.value && esc.value !== "None";
   renderBlock("block-escalation", "ESCALATION",
-    esc.value ? `🚨 Required → ${r.follow_up.action_owner.value}` : "Not required",
+    escalated ? `🚨 ${esc.value}` : "None",
     esc.reasoning,
     esc.confidence,
-    esc.value);
+    escalated);
 
   // Resolution
   renderBlock("block-resolution", "RESOLUTION",
@@ -484,8 +493,12 @@ function getInitials(name) {
 function toDateInputValue(date) {
   return date.toISOString().split("T")[0];
 }
-function escapeHtml(str) {
-  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+function escapeHtml(value) {
+  const str = String(value ?? "");
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 // ── CACHE (30 min expiry) ──────────────────────────────────────

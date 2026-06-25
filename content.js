@@ -42,7 +42,7 @@ function scrapeConversation() {
     if (!text) return;
 
     // Timestamp — WhatsApp stores the full date in data-pre-plain-text
-    // Format: "[HH:MM, DD/MM/YYYY] Name:"
+    // Format varies by locale: "[HH:MM, DD/MM/YYYY] Name:" or "[7:18 pm, 14/06/2026] Name:"
     const containerEl = row.querySelector("div[data-pre-plain-text]");
     const rawMeta = containerEl ? containerEl.getAttribute("data-pre-plain-text") : null;
 
@@ -50,13 +50,11 @@ function scrapeConversation() {
     let date = null; // actual JS Date object for filtering
 
     if (rawMeta) {
-      // Parse "[10:32, 17/06/2026] Ahmad:"
-      const match = rawMeta.match(/\[(\d{1,2}:\d{2}),\s*(\d{1,2}\/\d{1,2}\/\d{4})\]/);
-        if (match) {
-            time = match[1];                        // "11:47"
-            const [month, day, year] = match[2].split("/"); // M/D/YYYY
-            date = new Date(`${year}-${month.padStart(2,"0")}-${day.padStart(2,"0")}`);
-        }
+      const parsed = parseTimestamp(rawMeta);
+      if (parsed) {
+        time = parsed.time;
+        date = parsed.date;
+      }
     }
 
     // Outgoing = sent by agent
@@ -83,4 +81,56 @@ function scrapeConversation() {
     messages,
     scrapedAt: new Date().toISOString()
   };
+}
+
+// ── FLEXIBLE TIMESTAMP PARSER ──────────────────────────────────
+// Handles the many locale formats WhatsApp uses across machines:
+//   [7:18 pm, 14/06/2026]   12-hour, day-first
+//   [19:18, 6/14/2026]      24-hour, month-first
+//   [09:06, 14.06.2026]     dots
+//   [9:06 AM, 14-06-2026]   dashes, uppercase AM
+function parseTimestamp(rawMeta) {
+  // Pull out the bracketed part: [ ... ]
+  const bracket = rawMeta.match(/\[(.*?)\]/);
+  if (!bracket) return null;
+  const inside = bracket[1]; // e.g. "7:18 pm, 14/06/2026"
+
+  // Split into time portion and date portion at the comma
+  const parts = inside.split(",");
+  if (parts.length < 2) return null;
+
+  const timeStr = parts[0].trim();              // "7:18 pm"
+  const dateStr = parts.slice(1).join(",").trim(); // "14/06/2026"
+
+  // Extract the date numbers regardless of separator (/ . -)
+  const nums = dateStr.match(/(\d{1,4})/g);
+  if (!nums || nums.length < 3) return null;
+
+  // Figure out which number is the year (the 4-digit one)
+  let day, month, year;
+  if (nums[2].length === 4) {
+    // format: X / Y / YYYY
+    year = nums[2];
+    let a = parseInt(nums[0], 10);
+    let b = parseInt(nums[1], 10);
+    // Decide day vs month: >12 must be the day
+    if (a > 12) { day = a; month = b; }
+    else if (b > 12) { month = a; day = b; }
+    else { day = a; month = b; } // ambiguous → day-first (SG/MY default)
+  } else if (nums[0].length === 4) {
+    // format: YYYY / X / Y
+    year = nums[0];
+    let a = parseInt(nums[1], 10);
+    let b = parseInt(nums[2], 10);
+    if (a > 12) { day = a; month = b; }
+    else if (b > 12) { month = a; day = b; }
+    else { month = a; day = b; } // year-first usually month-first
+  } else {
+    return null;
+  }
+
+  const date = new Date(`${year}-${String(month).padStart(2,"0")}-${String(day).padStart(2,"0")}`);
+  if (isNaN(date.getTime())) return null;
+
+  return { time: timeStr, date };
 }
