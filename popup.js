@@ -3,14 +3,13 @@
 
 const GROQ_MODEL = "llama-3.3-70b-versatile";
 
-// ── STATE ──────────────────────────────────────────────────────
 let allMessages = [];
 let filteredMessages = [];
 let contactName = "";
 let contactPhone = "";
-let aiResult = null; // validated result
+let aiResult = null;
 
-// ── INIT ───────────────────────────────────────────────────────
+
 document.addEventListener("DOMContentLoaded", async () => {
   const { sfUrl, geminiApiKey } = await chrome.storage.local.get(["sfUrl", "geminiApiKey"]);
   if (!sfUrl || !geminiApiKey) { showScreen("setup"); return; }
@@ -18,7 +17,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupListeners();
 });
 
-// ── VERIFY SCREEN ──────────────────────────────────────────────
 document.getElementById("v-name").addEventListener("input", updateContinueButtonState);
 document.getElementById("v-phone").addEventListener("input", updateContinueButtonState);
 
@@ -30,7 +28,7 @@ document.getElementById("v-continue-btn").addEventListener("click", async () => 
     [`verified:${contactName}`]: { name: contactName, phone: contactPhone, savedAt: Date.now() }
   });
 
-  // Fill the main screen header + phone field
+
   document.getElementById("contact-name").textContent = contactName;
   document.getElementById("contact-phone").textContent = contactPhone;
   document.getElementById("contact-avatar").textContent = getInitials(contactName);
@@ -50,7 +48,7 @@ function updateContinueButtonState() {
   document.getElementById("v-continue-btn").disabled = !(name && phone);
 }
 
-// ── SETUP SCREEN ───────────────────────────────────────────────
+
 document.getElementById("save-setup-btn").addEventListener("click", async () => {
   const sfUrl = document.getElementById("sf-url-input").value.trim();
   const geminiApiKey = document.getElementById("api-key-input").value.trim();
@@ -135,7 +133,6 @@ async function loadConversation() {
   tryConnect(tab.id);
 }
 
-// ── LISTENERS ──────────────────────────────────────────────────
 function setupListeners() {
   document.getElementById("date-from").addEventListener("change", applyDateFilter);
   document.getElementById("date-to").addEventListener("change", applyDateFilter);
@@ -180,7 +177,7 @@ chrome.runtime.onMessage.addListener((request) => {
 });
 
 
-// ── DATE FILTER ────────────────────────────────────────────────
+
 function applyDateFilter() {
   const fromVal = document.getElementById("date-from").value;
   const toVal = document.getElementById("date-to").value;
@@ -205,7 +202,7 @@ function applyDateFilter() {
   renderPreview();
   resetAI();
 
-  // Try to load cached analysis for this date range
+
   if (filteredMessages.length > 0) {
     loadFromCache().then((cached) => {
       if (cached) {
@@ -219,7 +216,6 @@ function applyDateFilter() {
   }
 }
 
-// ── PREVIEW ────────────────────────────────────────────────────
 function renderPreview() {
   const c = document.getElementById("preview-body");
   if (filteredMessages.length === 0) {
@@ -233,7 +229,6 @@ function renderPreview() {
   }).join("");
 }
 
-// ── AI ANALYSIS ────────────────────────────────────────────────
 async function runAIAnalysis() {
   showAIState("loading");
   const { geminiApiKey } = await chrome.storage.local.get("geminiApiKey");
@@ -283,7 +278,7 @@ async function runAIAnalysis() {
   }
 }
 
-// ── RENDER INSIGHTS ────────────────────────────────────────────
+
 function renderInsights(r) {
   document.getElementById("review-banner").classList.toggle("hidden", !r.needsReview);
 
@@ -350,7 +345,6 @@ function renderInsights(r) {
   showAIState("result");
 }
 
-// Helper: render one insight block with value + reasoning + confidence
 function renderBlock(elId, label, value, reasoning, confidence, alert = false) {
   const valClass = alert ? "insight-value alert" : "insight-value";
   const reasoningHtml = reasoning
@@ -365,7 +359,6 @@ function renderBlock(elId, label, value, reasoning, confidence, alert = false) {
     ${reasoningHtml}`;
 }
 
-// Helper: confidence badge HTML
 function confBadge(conf) {
   if (conf == null) return "";
   const pct = Math.round(conf * 100);
@@ -375,7 +368,6 @@ function confBadge(conf) {
   return `<span class="conf-badge ${cls}">${pct}%</span>`;
 }
 
-// ── POPULATE CASE FIELDS ───────────────────────────────────────
 function populateCaseFields(r) {
   // Build subject in WA(PG) format: WA(PG) - [SUMMARY CAPS] | [STATUS]
   document.getElementById("case-subject").value = buildSubject(r);
@@ -477,7 +469,6 @@ document.getElementById("create-btn").addEventListener("click", async () => {
   });
 });
 
-// ── HELPERS ────────────────────────────────────────────────────
 function showScreen(name) {
   document.getElementById("setup-screen").classList.toggle("hidden", name !== "setup");
   document.getElementById("verify-screen").classList.toggle("hidden", name !== "verify");
