@@ -1,20 +1,54 @@
-// popup.js — v2
-// Flow: content.js (scrape) → Groq API → validator → display insights → Salesforce
+// popup.js — v3
+// Flow: SSO check → Verify → Main
+// API key and SF URL come from config.js (baked in at build time)
 
-const GROQ_MODEL = "llama-3.3-70b-versatile";
-
-let allMessages = [];
+// ── STATE ──────────────────────────────────────────────────────
+let allMessages      = [];
 let filteredMessages = [];
-let contactName = "";
-let contactPhone = "";
-let aiResult = null;
+let contactName      = "";
+let contactPhone     = "";
+let aiResult         = null;
 
-
+// ── INIT ───────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
-  const { sfUrl, geminiApiKey } = await chrome.storage.local.get(["sfUrl", "geminiApiKey"]);
-  if (!sfUrl || !geminiApiKey) { showScreen("setup"); return; }
+  const token = await getValidToken();
+  if (!token) {
+    showScreen("sso");
+    return;
+  }
   await loadConversation();
   setupListeners();
+});
+
+// ── SSO SCREEN ─────────────────────────────────────────────────
+document.getElementById("sso-login-btn").addEventListener("click", async () => {
+  const btn   = document.getElementById("sso-login-btn");
+  const errEl = document.getElementById("sso-error");
+
+  btn.disabled    = true;
+  btn.textContent = "Signing in...";
+  errEl.textContent = "";
+
+  const result = await microsoftLogin();
+
+  if (!result.success) {
+    errEl.textContent = result.error || "Login failed. Please try again.";
+    btn.disabled    = false;
+    btn.textContent = "Sign in with Microsoft";
+    return;
+  }
+
+  await loadConversation();
+  setupListeners();
+});
+
+// ── LOGOUT ─────────────────────────────────────────────────────
+document.getElementById("logout-btn").addEventListener("click", async () => {
+  await logout();
+  showScreen("sso");
+  document.getElementById("sso-login-btn").disabled    = false;
+  document.getElementById("sso-login-btn").textContent = "Sign in with Microsoft";
+  document.getElementById("sso-error").textContent     = "";
 });
 
 document.getElementById("v-name").addEventListener("input", updateContinueButtonState);
@@ -48,16 +82,6 @@ function updateContinueButtonState() {
   document.getElementById("v-continue-btn").disabled = !(name && phone);
 }
 
-
-document.getElementById("save-setup-btn").addEventListener("click", async () => {
-  const sfUrl = document.getElementById("sf-url-input").value.trim();
-  const geminiApiKey = document.getElementById("api-key-input").value.trim();
-  if (!sfUrl || !geminiApiKey) { alert("Please fill in both fields."); return; }
-  await chrome.storage.local.set({ sfUrl, geminiApiKey });
-  showScreen("main");
-  await loadConversation();
-  setupListeners();
-});
 
 async function loadConversation() {
   const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
@@ -230,27 +254,39 @@ function renderPreview() {
 }
 
 async function runAIAnalysis() {
+  const token = await getValidToken();
+  if (!token) {
+    showScreen("sso");
+    return;
+  }
+
   showAIState("loading");
-  const { geminiApiKey } = await chrome.storage.local.get("geminiApiKey");
 
   const transcript = filteredMessages
     .map((m) => `[${m.time || ""}] ${m.sender}: ${m.text}`)
     .join("\n");
 
   try {
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    const response = await fetch(AI_CONFIG.endpoint, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${geminiApiKey}`
+        "Content-Type":    "application/json",
+        "Authorization":   `Bearer ${AI_CONFIG.apiKey}`,
+        "X-PG-Auth-Token": token
       },
       body: JSON.stringify({
-        model: GROQ_MODEL,
-        temperature: 0.3,
-        messages: [{ role: "user", content: buildPrompt(transcript) }],
+        model:           AI_CONFIG.model,
+        temperature:     0.3,
+        messages:        [{ role: "user", content: buildPrompt(transcript) }],
         response_format: { type: "json_object" }
       })
     });
+
+    if (response.status === 401) {
+      await logout();
+      showScreen("sso");
+      return;
+    }
 
     const data = await response.json();
     if (data.error) {
@@ -259,14 +295,12 @@ async function runAIAnalysis() {
       return;
     }
 
-    // Parse → validate (THE KEY STEP)
     const raw = JSON.parse(data.choices[0].message.content);
-    aiResult = validateAIResult(raw);
+    aiResult  = validateAIResult(raw);
 
     console.log("Validation issues:", aiResult._validationIssues);
 
-    await saveToCache(aiResult); // cache it for 30 min
-
+    await saveToCache(aiResult);
     renderInsights(aiResult);
     populateCaseFields(aiResult);
     updateCreateButtonState();
@@ -440,7 +474,7 @@ document.getElementById("create-btn").addEventListener("click", async () => {
     return;
   }
 
-  const { sfUrl } = await chrome.storage.local.get("sfUrl");
+  const { sfUrl } = SF_URL;
 
   const finalDescription = document.getElementById("case-description").value
     .replace(/Phone:.*$/m, `Phone: ${phone}`);
@@ -470,9 +504,9 @@ document.getElementById("create-btn").addEventListener("click", async () => {
 });
 
 function showScreen(name) {
-  document.getElementById("setup-screen").classList.toggle("hidden", name !== "setup");
+  document.getElementById("sso-screen").classList.toggle("hidden",    name !== "sso");
   document.getElementById("verify-screen").classList.toggle("hidden", name !== "verify");
-  document.getElementById("main-screen").classList.toggle("hidden", name !== "main");
+  document.getElementById("main-screen").classList.toggle("hidden",   name !== "main");
 }
 function showAIState(state) {
   document.getElementById("ai-idle").classList.toggle("hidden", state !== "idle");
